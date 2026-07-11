@@ -350,8 +350,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.PERMANENT: Alert(
       "Pay Attention",
       "Driver Distracted",
-      AlertStatus.userPrompt, AlertSize.mid,
-      Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, .1),
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
 
   EventName.driverDistracted3: {
@@ -374,8 +374,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.PERMANENT: Alert(
       "Touch Steering Wheel",
       "Driver Unresponsive",
-      AlertStatus.userPrompt, AlertSize.mid,
-      Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, .1),
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
 
   EventName.driverUnresponsive3: {
@@ -869,8 +869,8 @@ if HARDWARE.get_device_type() == 'mici':
       ET.PERMANENT: Alert(
         "Pay Attention",
         "Driver Distracted",
-        AlertStatus.userPrompt, AlertSize.mid,
-        Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, 1),
+        AlertStatus.normal, AlertSize.small,
+        Priority.LOW, VisualAlert.none, AudibleAlert.none, 1),
     },
     EventName.resumeRequired: {
       ET.WARNING: Alert(

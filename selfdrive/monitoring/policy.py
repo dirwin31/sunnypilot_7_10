@@ -29,9 +29,9 @@ class DRIVER_MONITOR_SETTINGS:
     self._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT = 24.
     self._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT = 30.
     # https://cdn.euroncap.com/cars/assets/euro_ncap_protocol_safe_driving_driver_engagement_v11_a30e874152.pdf
-    self._VISION_POLICY_ALERT_1_TIMEOUT = 3.
-    self._VISION_POLICY_ALERT_2_TIMEOUT = 5.
-    self._VISION_POLICY_ALERT_3_TIMEOUT = 11.
+    self._VISION_POLICY_ALERT_1_TIMEOUT = 6.
+    self._VISION_POLICY_ALERT_2_TIMEOUT = 10.
+    self._VISION_POLICY_ALERT_3_TIMEOUT = 22.
 
     self._TIMEOUT_RECOVERY_FACTOR_MAX = 5.
     self._TIMEOUT_RECOVERY_FACTOR_MIN = 1.25
@@ -69,6 +69,7 @@ class DRIVER_MONITOR_SETTINGS:
     self._HI_STD_THRESHOLD = 0.3
     self._HI_STD_FALLBACK_TIME = int(10  / DT_DMON)  # fall back to wheel touch if model is uncertain for 10s
     self._DISTRACTED_FILTER_TS = 0.25  # 0.6Hz
+    self._DISTRACTED_VALID_FRAMES = int(1.0 / DT_DMON)
 
     self._POSE_CALIB_MIN_SPEED = 13  # 30 mph
     self._POSE_OFFSET_MIN_COUNT = int(60 / DT_DMON)  # valid data counts before calibration completes, 1min cumulative
@@ -136,6 +137,7 @@ class DriverMonitoring:
     self.always_on = always_on
     self.distracted_types = defaultdict(bool)
     self.driver_distracted = False
+    self._distracted_valid_frames = 0
     self.driver_distraction_filter = FirstOrderFilter(0., self.settings._DISTRACTED_FILTER_TS, DT_DMON)
     self.wheel_on_right = False
     self.wheel_on_right_last = None
@@ -294,6 +296,16 @@ class DriverMonitoring:
       self.hi_stds += 1
     elif self.face_detected and self.pose.low_std:
       self.hi_stds = 0
+
+    # Only expose distraction to the alert state machine after one uninterrupted
+    # validation window. Calibration above continues to use the raw model state.
+    if self.driver_distracted:
+      self._distracted_valid_frames += 1
+    else:
+      self._distracted_valid_frames = 0
+
+    self.driver_distracted = self._distracted_valid_frames >= self.settings._DISTRACTED_VALID_FRAMES
+    self.driver_distraction_filter.x = float(self.driver_distracted)
 
   def _update_events(self, driver_engaged, op_engaged, standstill, wrong_gear):
     self.alert_level = AlertLevel.none

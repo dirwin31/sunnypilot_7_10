@@ -8,7 +8,7 @@ This SunnyPilot checkout no longer uses the two paths originally referenced:
 There is no `VISION_TURN_COUNT` in this version. Its replacement is a combination of input filtering and awareness timeouts.
 
 > [!WARNING]
-> Changes that delay driver-inattention intervention or silence urgent on-road warnings weaken a safety mechanism. The information below maps the control flow and supports safe offline experimentation; it does not provide a production patch that suppresses those protections.
+> This branch delays driver-inattention intervention and makes level-2 warnings visual-only. These changes weaken a safety mechanism; level 3 remains audible and continues to request immediate disengagement.
 
 ## 1. Temporal filtering
 
@@ -31,7 +31,11 @@ self.driver_distraction_filter = FirstOrderFilter(
 )
 ```
 
-At `DT_DMON = 0.05`, the filter runs at 20 Hz. Increasing `_DISTRACTED_FILTER_TS` makes transitions slower, but it is not a strict consecutive-frame validator: prior samples decay rather than resetting.
+At `DT_DMON = 0.05`, monitoring runs at 20 Hz. This branch retains the filter for compatibility, but replaces its alert-gating result with a strict one-second consecutive-frame validator. Any attentive frame resets the counter:
+
+```python
+self._DISTRACTED_VALID_FRAMES = int(1.0 / DT_DMON)
+```
 
 Actual consecutive counters in this area are:
 
@@ -69,13 +73,13 @@ self.step_change = DT_DMON / self.settings._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT
 
 These calculations are in `selfdrive/monitoring/policy.py:182-193`.
 
-Current schedules are:
+Configured schedules are:
 
 ```python
 # Face detected, vision monitoring
-self._VISION_POLICY_ALERT_1_TIMEOUT = 3.
-self._VISION_POLICY_ALERT_2_TIMEOUT = 5.
-self._VISION_POLICY_ALERT_3_TIMEOUT = 11.
+self._VISION_POLICY_ALERT_1_TIMEOUT = 6.
+self._VISION_POLICY_ALERT_2_TIMEOUT = 10.
+self._VISION_POLICY_ALERT_3_TIMEOUT = 22.
 
 # No reliable face, wheel-touch fallback
 self._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT = 15.
@@ -125,7 +129,7 @@ Current behavior:
 | Level | Size/status | Audible |
 |---|---|---|
 | 1 | Small, normal, low priority | `none` |
-| 2 | Mid, user prompt, medium priority | `promptDistracted` |
+| 2 | Small, normal, low priority | `none` |
 | 3 | Full, critical, high priority | `warningImmediate` |
 
 Level 1 is already the visual-only text tier:
@@ -150,12 +154,12 @@ Editing `events.py` would not remove that response.
 
 Finally, mici hardware overrides level-1 and level-2 definitions at `selfdrive/selfdrived/events.py:859`, so presentation changes made only to the primary mapping would not apply consistently on that hardware.
 
-## Safe offline evaluation
+## Regression test
 
-Inject a custom `DRIVER_MONITOR_SETTINGS` instance into `DriverMonitoring(settings=...)` in `selfdrive/monitoring/test_monitoring.py`, then run:
+Run the closed-loop monitoring regression test with:
 
 ```sh
-pytest -q selfdrive/monitoring/test_monitoring.py
+pytest -q selfdrive/monitoring/test_personal_monitoring.py
 ```
 
-This permits measuring transition timing without altering the production on-road policy.
+The closed-loop harness in `selfdrive/monitoring/test_personal_monitoring.py` feeds synthetic 20 Hz driver-model frames through the production monitoring state machine. It validates strict consecutive-frame gating, the slower awareness schedule, terminal-alert latching and recovery, and the visual-only level-2 event definitions.
